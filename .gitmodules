@@ -1,0 +1,6 @@
+[submodule "test_input"]
+	path = test_input
+	url = https://github.com/WebAssembly/testsuite
+[submodule "rust-sgx-sdk"]
+	path = rust-sgx-sdk
+	url = https://github.com/apache/teaclave-sgx-sdk.git
