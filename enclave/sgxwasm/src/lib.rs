@@ -60,7 +60,6 @@ use wasmi::{ModuleInstance,
 };
 
 use wabt::script;
-use wabt::script::{Value};
 
 extern crate serde;
 #[macro_use]
@@ -146,16 +145,6 @@ impl SpecModule {
             global_f32: GlobalInstance::alloc(RuntimeValue::F32(666.0.into()), false),
             global_f64: GlobalInstance::alloc(RuntimeValue::F64(666.0.into()), false),
         }
-    }
-}
-
-pub fn spec_to_runtime_value(value: Value) -> RuntimeValue {
-    match value {
-        Value::I32(v) => RuntimeValue::I32(v),
-        Value::I64(v) => RuntimeValue::I64(v),
-        Value::F32(v) => RuntimeValue::F32(v.into()),
-        Value::F64(v) => RuntimeValue::F64(v.into()),
-        _             => panic!("Not supported yet!"),
     }
 }
 
@@ -289,7 +278,7 @@ impl SpecDriver {
         }
     }
 
-    pub fn spec_module(&mut self) -> &mut SpecModule {
+    pub fn externals(&mut self) -> &mut SpecModule {
         &mut self.spec_module
     }
 
@@ -392,7 +381,7 @@ pub fn try_load(wasm: &[u8], spec_driver: &mut SpecDriver) -> Result<(), Error> 
     let module = try_load_module(wasm)?;
     let instance = ModuleInstance::new(&module, &ImportsBuilder::default())?;
     instance
-        .run_start(spec_driver.spec_module())
+        .run_start(spec_driver.externals())
         .map_err(|trap| Error::Start(trap))?;
     Ok(())
 }
@@ -401,7 +390,7 @@ pub fn load_module(wasm: &[u8], name: &Option<String>, spec_driver: &mut SpecDri
     let module = try_load_module(wasm)?;
     let instance = ModuleInstance::new(&module, spec_driver)
         .map_err(|e| Error::Load(e.to_string()))?
-        .run_start(spec_driver.spec_module())
+        .run_start(spec_driver.externals())
         .map_err(|trap| Error::Start(trap))?;
 
     let module_name = name.clone();
@@ -409,4 +398,3 @@ pub fn load_module(wasm: &[u8], name: &Option<String>, spec_driver: &mut SpecDri
 
     Ok(instance)
 }
-

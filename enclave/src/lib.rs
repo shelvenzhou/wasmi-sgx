@@ -47,28 +47,29 @@ extern crate serde;
 extern crate serde_json;
 
 lazy_static!{
-    static ref SPECDRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
+    static ref DRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
+    // static ref DRIVER: SgxMutex<InkDriver> = SgxMutex::new(InkDriver::new());
 }
 
 #[no_mangle]
 pub extern "C"
 fn sgxwasm_init() -> sgx_status_t {
-    let mut sd = SPECDRIVER.lock().unwrap();
+    let mut sd = DRIVER.lock().unwrap();
     *sd = SpecDriver::new();
     sgx_status_t::SGX_SUCCESS
 }
 
 fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>)
               -> Result<Option<RuntimeValue>, InterpreterError> {
-    let mut program = SPECDRIVER.lock().unwrap();
+    let mut program = DRIVER.lock().unwrap();
     let module = program.module_or_last(module.as_ref().map(|x| x.as_ref()))
                         .expect(&format!("Expected program to have loaded module {:?}", module));
-    module.invoke_export(&field, &args, program.spec_module())
+    module.invoke_export(&field, &args, program.externals())
 }
 
 fn wasm_get(module : Option<String>, field : String)
             -> Result<Option<RuntimeValue>, InterpreterError> {
-    let program = SPECDRIVER.lock().unwrap();
+    let program = DRIVER.lock().unwrap();
     let module = match module {
         None => {
                  program
@@ -103,33 +104,33 @@ fn try_load_module(wasm: &[u8]) -> Result<Module, InterpreterError> {
 }
 
 fn wasm_try_load(wasm: Vec<u8>) -> Result<(), InterpreterError> {
-    let ref mut spec_driver = SPECDRIVER.lock().unwrap();
+    let ref mut driver = DRIVER.lock().unwrap();
     let module = try_load_module(&wasm[..])?;
     let instance = ModuleInstance::new(&module, &ImportsBuilder::default())?;
     instance
-        .run_start(spec_driver.spec_module())
+        .run_start(driver.externals())
         .map_err(|trap| InterpreterError::Instantiation(format!("ModuleInstance::run_start error on {:?}", trap)))?;
     Ok(())
 }
 
 fn wasm_load_module(name: Option<String>, module: Vec<u8>)
                     -> Result<(), InterpreterError> {
-    let ref mut spec_driver = SPECDRIVER.lock().unwrap();
+    let ref mut driver = DRIVER.lock().unwrap();
     let module = try_load_module(&module[..])?;
-    let instance = ModuleInstance::new(&module, &**spec_driver)
+    let instance = ModuleInstance::new(&module, &**driver)
         .map_err(|e| InterpreterError::Instantiation(format!("ModuleInstance::new error on {:?}", e)))?
-        .run_start(spec_driver.spec_module())
+        .run_start(driver.externals())
         .map_err(|trap| InterpreterError::Instantiation(format!("ModuleInstance::run_start error on {:?}", trap)))?;
 
-    spec_driver.add_module(name, instance.clone());
+    driver.add_module(name, instance.clone());
 
     Ok(())
 }
 
 fn wasm_register(name: &Option<String>, as_name: String)
                     -> Result<(), InterpreterError> {
-    let ref mut spec_driver = SPECDRIVER.lock().unwrap();
-    spec_driver.register(name, as_name)
+    let ref mut driver = DRIVER.lock().unwrap();
+    driver.register(name, as_name)
 }
 
 #[no_mangle]
@@ -226,4 +227,3 @@ fn sgxwasm_run_action(req_bin : *const u8, req_length: usize,
         return sgx_status_t::SGX_ERROR_WASM_BUFFER_TOO_SHORT;
     }
 }
-
