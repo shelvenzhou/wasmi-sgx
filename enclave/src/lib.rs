@@ -36,7 +36,7 @@ use std::ptr;
 extern crate wasmi;
 extern crate sgxwasm;
 
-use sgxwasm::{SpecDriver, boundary_value_to_runtime_value, result_covert};
+use sgxwasm::{drivers::SpecDriver, boundary_value_to_runtime_value, result_covert};
 
 use sgx_types::*;
 use std::slice;
