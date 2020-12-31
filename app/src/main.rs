@@ -28,6 +28,7 @@ mod wasm_def;
 
 use wasm_def::{RuntimeValue, Error as InterpreterError};
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
+use wabt::Wasm2Wat;
 
 extern crate serde;
 extern crate serde_json;
@@ -373,13 +374,17 @@ fn sgx_enclave_wasm_register(name : Option<String>,
     }
 }
 
-fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String> {
+fn wasm_main_loop(wasm_file : &str, enclave : &SgxEnclave) -> Result<(), String> {
 
     // ScriptParser interface has changed. Need to feed it with wast content.
-    let wast_content : Vec<u8> = std::fs::read(wast_file).unwrap();
-    let path = std::path::Path::new(wast_file);
+    let wasm_content : Vec<u8> = std::fs::read(wasm_file).unwrap();
+    let path = std::path::Path::new(wasm_file);
     let fnme = path.file_name().unwrap().to_str().unwrap();
-    let mut parser = ScriptParser::from_source_and_name(&wast_content, fnme).unwrap();
+
+    let wast_content = Wasm2Wat::new().convert(&wasm_content).unwrap();
+    let wast_content = String::from_utf8(wast_content.as_ref().to_vec()).unwrap();
+
+    let mut parser = ScriptParser::from_str(&wast_content).unwrap();
 
     sgx_enclave_wasm_init(enclave)?;
     while let Some(Command{kind,line}) =
@@ -515,14 +520,14 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
     Ok(())
 }
 
-fn run_a_wast(enclave   : &SgxEnclave,
-              wast_file : &str) -> Result<(), String> {
+fn run_a_wasm(enclave   : &SgxEnclave,
+              wasm_file : &str) -> Result<(), String> {
 
     // Step 1: Init the sgxwasm spec driver engine
     sgx_enclave_wasm_init(enclave)?;
 
     // Step 2: Load the wast file and run
-    wasm_main_loop(wast_file, enclave)?;
+    wasm_main_loop(wasm_file, enclave)?;
 
     Ok(())
 }
@@ -540,84 +545,13 @@ fn main() {
         },
     };
 
-    let wast_list = vec![
-        "../test_input/int_exprs.wast",
-        "../test_input/conversions.wast",
-        "../test_input/nop.wast",
-        "../test_input/float_memory.wast",
-        "../test_input/call.wast",
-        "../test_input/memory.wast",
-        "../test_input/utf8-import-module.wast",
-        "../test_input/labels.wast",
-        "../test_input/align.wast",
-        "../test_input/memory_trap.wast",
-        "../test_input/br.wast",
-        "../test_input/globals.wast",
-        "../test_input/comments.wast",
-        "../test_input/get_local.wast",
-        "../test_input/float_literals.wast",
-        "../test_input/elem.wast",
-        "../test_input/f64_bitwise.wast",
-        "../test_input/custom_section.wast",
-        "../test_input/inline-module.wast",
-        "../test_input/call_indirect.wast",
-        "../test_input/break-drop.wast",
-        "../test_input/unreached-invalid.wast",
-        "../test_input/utf8-import-field.wast",
-        "../test_input/loop.wast",
-        "../test_input/br_if.wast",
-        "../test_input/select.wast",
-        "../test_input/unwind.wast",
-        "../test_input/binary.wast",
-        "../test_input/tee_local.wast",
-        "../test_input/custom.wast",
-        "../test_input/start.wast",
-        "../test_input/float_misc.wast",
-        "../test_input/stack.wast",
-        "../test_input/f32_cmp.wast",
-        "../test_input/i64.wast",
-        "../test_input/const.wast",
-        "../test_input/unreachable.wast",
-        "../test_input/switch.wast",
-        "../test_input/resizing.wast",
-        "../test_input/i32.wast",
-        "../test_input/f64_cmp.wast",
-        "../test_input/int_literals.wast",
-        "../test_input/br_table.wast",
-        "../test_input/traps.wast",
-        "../test_input/return.wast",
-        "../test_input/f64.wast",
-        "../test_input/type.wast",
-        "../test_input/fac.wast",
-        "../test_input/set_local.wast",
-        "../test_input/func.wast",
-        "../test_input/f32.wast",
-        "../test_input/f32_bitwise.wast",
-        "../test_input/float_exprs.wast",
-        "../test_input/linking.wast",
-        "../test_input/skip-stack-guard-page.wast",
-        "../test_input/names.wast",
-        "../test_input/address.wast",
-        "../test_input/memory_redundancy.wast",
-        "../test_input/block.wast",
-        "../test_input/utf8-invalid-encoding.wast",
-        "../test_input/left-to-right.wast",
-        "../test_input/forward.wast",
-        "../test_input/typecheck.wast",
-        "../test_input/store_retval.wast",
-        "../test_input/imports.wast",
-        "../test_input/exports.wast",
-        "../test_input/endianness.wast",
-        "../test_input/func_ptrs.wast",
-        "../test_input/if.wast",
-        "../test_input/token.wast",
-        "../test_input/data.wast",
-        "../test_input/utf8-custom-section-id.wast",
+    let wasm_list = vec![
+        "../test_ink_contracts/flipper.wasm",
         ];
 
-    for wfile in wast_list {
+    for wfile in wasm_list {
         println!("======================= testing {} =====================", wfile);
-        run_a_wast(&enclave, wfile).unwrap();
+        run_a_wasm(&enclave, wfile).unwrap();
     }
 
     enclave.destroy();
