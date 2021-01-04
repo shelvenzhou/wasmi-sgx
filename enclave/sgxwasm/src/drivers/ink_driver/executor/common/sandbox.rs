@@ -25,7 +25,7 @@ use super::error::{Error, Result};
 use super::sandbox_primitives;
 use super::wasm_interface::{self, FunctionContext, Pointer, WordSize};
 use codec::{Decode, Encode};
-use std::{borrow::ToOwned, boxed::Box, collections::HashMap, rc::Rc, vec::Vec};
+use std::{borrow::ToOwned, boxed::Box, collections::HashMap, sync::Arc, vec::Vec};
 use wasmi::{
     memory_units::Pages, Externals, ImportResolver, MemoryInstance, MemoryRef, Module,
     ModuleInstance, ModuleRef, RuntimeArgs, RuntimeValue, Trap, TrapKind,
@@ -451,7 +451,7 @@ impl GuestEnvironment {
 /// To finish off the instantiation the user must call `register`.
 #[must_use]
 pub struct UnregisteredInstance<FR> {
-    sandbox_instance: Rc<SandboxInstance<FR>>,
+    sandbox_instance: Arc<SandboxInstance<FR>>,
 }
 
 impl<FR> UnregisteredInstance<FR> {
@@ -488,7 +488,7 @@ pub fn instantiate<'a, FE: SandboxCapabilities>(
     let instance = ModuleInstance::new(&module, &host_env.imports)
         .map_err(|_| InstantiationError::Instantiation)?;
 
-    let sandbox_instance = Rc::new(SandboxInstance {
+    let sandbox_instance = Arc::new(SandboxInstance {
         // In general, it's not a very good idea to use `.not_started_instance()` for anything
         // but for extracting memory and tables. But in this particular case, we are extracting
         // for the purpose of running `start` function which should be ok.
@@ -516,7 +516,7 @@ pub fn instantiate<'a, FE: SandboxCapabilities>(
 /// This is generic over a supervisor function reference type.
 pub struct Store<FR> {
     // Memories and instances are `Some` until torn down.
-    instances: Vec<Option<Rc<SandboxInstance<FR>>>>,
+    instances: Vec<Option<Arc<SandboxInstance<FR>>>>,
     memories: Vec<Option<MemoryRef>>,
 }
 
@@ -554,7 +554,7 @@ impl<FR> Store<FR> {
     ///
     /// Returns `Err` If `instance_idx` isn't a valid index of an instance or
     /// instance is already torndown.
-    pub fn instance(&self, instance_idx: u32) -> Result<Rc<SandboxInstance<FR>>> {
+    pub fn instance(&self, instance_idx: u32) -> Result<Arc<SandboxInstance<FR>>> {
         self.instances
             .get(instance_idx as usize)
             .cloned()
@@ -610,7 +610,7 @@ impl<FR> Store<FR> {
         }
     }
 
-    fn register_sandbox_instance(&mut self, sandbox_instance: Rc<SandboxInstance<FR>>) -> u32 {
+    fn register_sandbox_instance(&mut self, sandbox_instance: Arc<SandboxInstance<FR>>) -> u32 {
         let instance_idx = self.instances.len();
         self.instances.push(Some(sandbox_instance));
         instance_idx as u32

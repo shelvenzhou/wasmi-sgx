@@ -740,9 +740,10 @@ mod tests {
         tests::{ALICE, BOB, CHARLIE},
         CodeHash, ConfigCache, Error,
     };
+    use alloc::sync::Arc;
     use assert_matches::assert_matches;
     use sp_runtime::DispatchError;
-    use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
+    use std::{cell::RefCell, collections::HashMap, marker::PhantomData};
 
     const GAS_LIMIT: Gas = 10_000_000_000;
 
@@ -763,11 +764,11 @@ mod tests {
     }
 
     #[derive(Clone)]
-    struct MockExecutable<'a>(Rc<dyn Fn(MockCtx) -> ExecResult + 'a>);
+    struct MockExecutable<'a>(Arc<dyn Fn(MockCtx) -> ExecResult + 'a>);
 
     impl<'a> MockExecutable<'a> {
         fn new(f: impl Fn(MockCtx) -> ExecResult + 'a) -> Self {
-            MockExecutable(Rc::new(f))
+            MockExecutable(Arc::new(f))
         }
     }
 
@@ -856,7 +857,7 @@ mod tests {
 
         let vm = MockVm::new();
 
-        let test_data = Rc::new(RefCell::new(vec![0usize]));
+        let test_data = Arc::new(RefCell::new(vec![0usize]));
 
         let mut loader = MockLoader::empty();
         let exec_ch = loader.insert(|_ctx| {
@@ -1313,10 +1314,10 @@ mod tests {
 
         let mut loader = MockLoader::empty();
         let dummy_ch = loader.insert(|_| exec_success());
-        let instantiated_contract_address = Rc::new(RefCell::new(None::<AccountIdOf<Test>>));
+        let instantiated_contract_address = Arc::new(RefCell::new(None::<AccountIdOf<Test>>));
         let instantiator_ch = loader.insert({
             let dummy_ch = dummy_ch.clone();
-            let instantiated_contract_address = Rc::clone(&instantiated_contract_address);
+            let instantiated_contract_address = Arc::clone(&instantiated_contract_address);
             move |ctx| {
                 // Instantiate a contract and save it's address in `instantiated_contract_address`.
                 let (address, output) = ctx
