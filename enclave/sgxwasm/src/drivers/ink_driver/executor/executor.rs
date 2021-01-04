@@ -16,20 +16,25 @@
 
 //! This crate provides an implementation of `WasmModule` that is baked by wasmi.
 
-use codec::{Decode, Encode};
-use log::{debug, error, trace};
-use sc_executor_common::util::{DataSegmentsSnapshot, WasmModuleInfo};
-use sc_executor_common::wasm_runtime::{InvokeMethod, WasmInstance, WasmModule};
-use sc_executor_common::{
+use super::allocator;
+use super::common::util::{DataSegmentsSnapshot, WasmModuleInfo};
+use super::common::wasm_runtime::{InvokeMethod, WasmInstance, WasmModule};
+use super::common::{
     error::{Error, WasmError},
-    sandbox,
+    sandbox, sandbox_primitives,
 };
-use sp_core::sandbox as sandbox_primitives;
-use sp_runtime_interface::unpack_ptr_and_len;
-use sp_wasm_interface::{
-    Function, FunctionContext, MemoryId, Pointer, Result as WResult, Sandbox, WordSize,
+use super::wasm_interface::{
+    self, Function, FunctionContext, MemoryId, Pointer, Result as WResult, Sandbox, WordSize,
 };
-use std::{cell::RefCell, str, sync::Arc};
+use codec::{Decode, Encode};
+use std::{
+    boxed::Box,
+    cell::RefCell,
+    str,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 use wasmi::{
     memory_units::Pages,
     FuncInstance, ImportsBuilder, MemoryInstance, MemoryRef, Module, ModuleInstance, ModuleRef,
@@ -39,7 +44,7 @@ use wasmi::{
 
 struct FunctionExecutor<'a> {
     sandbox_store: sandbox::Store<wasmi::FuncRef>,
-    heap: sp_allocator::FreeingBumpHeapAllocator,
+    heap: allocator::FreeingBumpHeapAllocator,
     memory: MemoryRef,
     table: Option<TableRef>,
     host_functions: &'a [&'static dyn Function],
@@ -58,7 +63,7 @@ impl<'a> FunctionExecutor<'a> {
     ) -> Result<Self, Error> {
         Ok(FunctionExecutor {
             sandbox_store: sandbox::Store::new(),
-            heap: sp_allocator::FreeingBumpHeapAllocator::new(heap_base),
+            heap: allocator::FreeingBumpHeapAllocator::new(heap_base),
             memory: m,
             table: t,
             host_functions,
@@ -197,10 +202,8 @@ impl<'a> Sandbox for FunctionExecutor<'a> {
         return_val_len: WordSize,
         state: u32,
     ) -> WResult<u32> {
-        trace!(target: "sp-sandbox", "invoke, instance_idx={}", instance_id);
-
         // Deserialize arguments and convert them into wasmi types.
-        let args = Vec::<sp_wasm_interface::Value>::decode(&mut &args[..])
+        let args = Vec::<wasm_interface::Value>::decode(&mut &args[..])
             .map_err(|_| "Can't decode serialized arguments for the invocation")?
             .into_iter()
             .map(Into::into)
@@ -216,7 +219,7 @@ impl<'a> Sandbox for FunctionExecutor<'a> {
             Ok(None) => Ok(sandbox_primitives::ERR_OK),
             Ok(Some(val)) => {
                 // Serialize return value and write it back into the memory.
-                sp_wasm_interface::ReturnValue::Value(val.into()).using_encoded(|val| {
+                wasm_interface::ReturnValue::Value(val.into()).using_encoded(|val| {
                     if val.len() > return_val_len as usize {
                         Err("Return value buffer is too small")?;
                     }
@@ -275,7 +278,7 @@ impl<'a> Sandbox for FunctionExecutor<'a> {
         &self,
         instance_idx: u32,
         name: &str,
-    ) -> WResult<Option<sp_wasm_interface::Value>> {
+    ) -> WResult<Option<wasm_interface::Value>> {
         self.sandbox_store
             .instance(instance_idx)
             .map(|i| i.get_global_val(name))
@@ -323,7 +326,7 @@ impl<'a> wasmi::ModuleImportResolver for Resolver<'a> {
         name: &str,
         signature: &wasmi::Signature,
     ) -> std::result::Result<wasmi::FuncRef, wasmi::Error> {
-        let signature = sp_wasm_interface::Signature::from(signature);
+        let signature = wasm_interface::Signature::from(signature);
         for (function_index, function) in self.host_functions.iter().enumerate() {
             if name == function.name() {
                 if signature == function.signature() {
@@ -343,7 +346,6 @@ impl<'a> wasmi::ModuleImportResolver for Resolver<'a> {
         }
 
         if self.allow_missing_func_imports {
-            trace!(target: "wasm-executor", "Could not find function `{}`, a stub will be provided instead.", name);
             let id = self.missing_functions.borrow().len() + self.host_functions.len();
             self.missing_functions.borrow_mut().push(name.to_string());
 
@@ -458,6 +460,22 @@ fn get_heap_base(module: &ModuleRef) -> Result<u32, Error> {
     }
 }
 
+/// Unpacks an `u64` into the pointer and length.
+///
+/// Runtime API functions return a 64-bit value which encodes a pointer in the least-significant
+/// 32-bits and a length in the most-significant 32 bits. This interprets the returned value as a pointer,
+/// length tuple.
+pub fn unpack_ptr_and_len(val: u64) -> (u32, u32) {
+    // The static assertions from above are changed into a runtime check.
+    #[cfg(all(not(feature = "std"), feature = "disable_target_static_assertions"))]
+    assert_eq!(4, sp_std::mem::size_of::<usize>());
+
+    let ptr = (val & (!0u32 as u64)) as u32;
+    let len = (val >> 32) as u32;
+
+    (ptr, len)
+}
+
 /// Call a given method in the given wasm-module runtime.
 fn call_in_wasm_module(
     module_instance: &ModuleRef,
@@ -534,14 +552,7 @@ fn call_in_wasm_module(
                 .get(ptr.into(), length as usize)
                 .map_err(|_| Error::Runtime)
         }
-        Err(e) => {
-            trace!(
-                target: "wasm-executor",
-                "Failed to execute code with {} pages",
-                memory.current_size().0,
-            );
-            Err(e.into())
-        }
+        Err(e) => Err(e.into()),
         _ => Err(Error::InvalidReturn),
     }
 }
@@ -568,11 +579,6 @@ fn instantiate_module(
     let memory = match resolver.import_memory.into_inner() {
         Some(memory) => memory,
         None => {
-            debug!(
-                target: "wasm-executor",
-                "WASM blob does not imports memory, falling back to exported memory",
-            );
-
             let memory = get_mem_instance(intermediate_instance.not_started_instance())?;
             memory.grow(Pages(heap_pages)).map_err(|_| Error::Runtime)?;
 
@@ -750,7 +756,6 @@ impl WasmInstance for WasmiInstance {
             // Snapshot restoration failed. This is pretty unexpected since this can happen
             // if some invariant is broken or if the system is under extreme memory pressure
             // (so erasing fails).
-            error!(target: "wasm-executor", "snapshot restoration failed: {}", e);
             WasmError::ErasingFailed(e.to_string())
         })?;
 
@@ -772,7 +777,7 @@ impl WasmInstance for WasmiInstance {
         )
     }
 
-    fn get_global_const(&self, name: &str) -> Result<Option<sp_wasm_interface::Value>, Error> {
+    fn get_global_const(&self, name: &str) -> Result<Option<wasm_interface::Value>, Error> {
         match self.instance.export_by_name(name) {
             Some(global) => Ok(Some(
                 global

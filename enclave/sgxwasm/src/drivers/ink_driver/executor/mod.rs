@@ -32,7 +32,8 @@
 #![recursion_limit = "128"]
 
 mod common;
-// mod executor;
+mod executor;
 
+use super::allocator;
 #[doc(hidden)]
 use super::wasm_interface;

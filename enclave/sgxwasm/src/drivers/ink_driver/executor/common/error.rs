@@ -18,6 +18,7 @@
 
 //! Rust executor possible errors.
 
+use super::allocator;
 use serde::{Deserialize, Serialize};
 use std::{fmt, string::String};
 use wasmi;
@@ -78,7 +79,7 @@ pub enum Error {
     Other(String),
 
     // #[error(transparent)]
-    // Allocator(#[from] sp_allocator::Error),
+    Allocator(allocator::Error),
 
     // #[error("Host function {0} execution failed with: {1}")]
     FunctionExecution(String, String),
@@ -141,6 +142,12 @@ impl From<String> for Error {
 impl From<wasmi::Error> for Error {
     fn from(err: wasmi::Error) -> Error {
         Error::Wasmi(err)
+    }
+}
+
+impl From<WasmError> for Error {
+    fn from(err: WasmError) -> Error {
+        Error::RuntimeConstruction(err)
     }
 }
 

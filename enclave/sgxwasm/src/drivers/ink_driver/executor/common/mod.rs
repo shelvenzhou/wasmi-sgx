@@ -20,8 +20,9 @@
 
 pub mod error;
 pub mod sandbox;
-mod sandbox_primitives;
+pub mod sandbox_primitives;
 pub mod util;
 pub mod wasm_runtime;
 
+use super::allocator;
 use super::wasm_interface;
