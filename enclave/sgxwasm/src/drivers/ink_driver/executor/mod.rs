@@ -32,10 +32,7 @@
 #![recursion_limit = "128"]
 
 mod common;
-mod executor;
-mod wasm_runtime;
+// mod executor;
 
 #[doc(hidden)]
 use super::wasm_interface;
-pub use wasm_runtime::WasmExecutionMethod;
-use wasmi;

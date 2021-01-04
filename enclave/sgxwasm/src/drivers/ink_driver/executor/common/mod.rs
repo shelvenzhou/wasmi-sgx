@@ -17,9 +17,11 @@
 //! A set of common definitions that are needed for defining execution engines.
 
 #![warn(missing_docs)]
-#![deny(unused_crate_dependencies)]
 
 pub mod error;
 pub mod sandbox;
+mod sandbox_primitives;
 pub mod util;
 pub mod wasm_runtime;
+
+use super::wasm_interface;

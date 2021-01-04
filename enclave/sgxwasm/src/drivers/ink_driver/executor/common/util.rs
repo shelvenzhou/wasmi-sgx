@@ -18,9 +18,10 @@
 
 //! A set of utilities for resetting a wasm instance to its initial state.
 
-use crate::error::{self, Error};
+use super::error::{self, Error};
 use parity_wasm::elements::{deserialize_buffer, DataSegment, Instruction, Module as RawModule};
 use std::mem;
+use std::vec::Vec;
 
 /// A bunch of information collected from a WebAssembly module.
 pub struct WasmModuleInfo {

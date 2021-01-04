@@ -17,18 +17,14 @@
 
 //! Types and traits for interfacing between the host and the wasm runtime.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+use std::{
+    borrow::Cow, iter::Iterator, marker::PhantomData, mem, result, string::String, vec, vec::Vec,
+};
 
-use sp_std::{borrow::Cow, iter::Iterator, marker::PhantomData, mem, result, vec, vec::Vec};
-
-#[cfg(feature = "std")]
 mod wasmi_impl;
 
 /// Result type used by traits in this crate.
-#[cfg(feature = "std")]
 pub type Result<T> = result::Result<T, String>;
-#[cfg(not(feature = "std"))]
-pub type Result<T> = result::Result<T, &'static str>;
 
 /// Value types supported by Substrate on the boundary between host/Wasm.
 #[derive(Copy, Clone, PartialEq, Debug, Eq)]
@@ -54,10 +50,10 @@ impl From<ValueType> for u8 {
     }
 }
 
-impl sp_std::convert::TryFrom<u8> for ValueType {
+impl std::convert::TryFrom<u8> for ValueType {
     type Error = ();
 
-    fn try_from(val: u8) -> sp_std::result::Result<ValueType, ()> {
+    fn try_from(val: u8) -> std::result::Result<ValueType, ()> {
         match val {
             0 => Ok(Self::I32),
             1 => Ok(Self::I64),
@@ -355,16 +351,17 @@ pub trait HostFunctions: 'static {
     fn host_functions() -> Vec<&'static dyn Function>;
 }
 
-#[impl_trait_for_tuples::impl_for_tuples(30)]
-impl HostFunctions for Tuple {
-    fn host_functions() -> Vec<&'static dyn Function> {
-        let mut host_functions = Vec::new();
+// TODO: fix HostFunctions
+// #[impl_trait_for_tuples::impl_for_tuples(30)]
+// impl HostFunctions for Tuple {
+//     fn host_functions() -> Vec<&'static dyn Function> {
+//         let mut host_functions = Vec::new();
 
-        for_tuples!( #( host_functions.extend(Tuple::host_functions()); )* );
+//         for_tuples!( #( host_functions.extend(Tuple::host_functions()); )* );
 
-        host_functions
-    }
-}
+//         host_functions
+//     }
+// }
 
 /// Something that can be converted into a wasm compatible `Value`.
 pub trait IntoValue {

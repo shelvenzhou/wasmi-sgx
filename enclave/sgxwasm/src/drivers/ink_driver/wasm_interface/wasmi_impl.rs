@@ -17,7 +17,8 @@
 
 //! Implementation of conversions between Substrate and wasmi types.
 
-use crate::{Signature, Value, ValueType};
+use super::{Signature, Value, ValueType};
+use std::vec::Vec;
 
 impl From<Value> for wasmi::RuntimeValue {
     fn from(value: Value) -> Self {

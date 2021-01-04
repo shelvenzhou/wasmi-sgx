@@ -18,99 +18,113 @@
 
 //! Rust executor possible errors.
 
-use sp_serializer;
+use serde::{Deserialize, Serialize};
+use std::{fmt, string::String};
 use wasmi;
 
 /// Result type alias.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Error type.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub enum Error {
-    #[error("Unserializable data encountered")]
-    InvalidData(#[from] sp_serializer::Error),
+    // #[error("Unserializable data encountered")]
+    // InvalidData(#[from] sp_serializer::Error),
 
-    #[error(transparent)]
-    Trap(#[from] wasmi::Trap),
+    // #[error(transparent)]
+    Trap(wasmi::Trap),
 
-    #[error(transparent)]
-    Wasmi(#[from] wasmi::Error),
+    // #[error(transparent)]
+    Wasmi(wasmi::Error),
 
-    #[error("API Error: {0}")]
+    // #[error("API Error: {0}")]
     ApiError(String),
 
-    #[error("Method not found: '{0}'")]
+    // #[error("Method not found: '{0}'")]
     MethodNotFound(String),
 
-    #[error("Invalid Code (expected single byte): '{0}'")]
+    // #[error("Invalid Code (expected single byte): '{0}'")]
     InvalidCode(String),
 
-    #[error("On-chain runtime does not specify version")]
+    // #[error("On-chain runtime does not specify version")]
     VersionInvalid,
 
-    #[error("Externalities error")]
+    // #[error("Externalities error")]
     Externalities,
 
-    #[error("Invalid index provided")]
+    // #[error("Invalid index provided")]
     InvalidIndex,
 
-    #[error("Invalid type returned (should be u64)")]
+    // #[error("Invalid type returned (should be u64)")]
     InvalidReturn,
 
-    #[error("Runtime error")]
+    // #[error("Runtime error")]
     Runtime,
 
-    #[error("Runtime panicked: {0}")]
+    // #[error("Runtime panicked: {0}")]
     RuntimePanicked(String),
 
-    #[error("Invalid memory reference")]
+    // #[error("Invalid memory reference")]
     InvalidMemoryReference,
 
-    #[error("The runtime doesn't provide a global named `__heap_base` of type `i32`")]
+    // #[error("The runtime doesn't provide a global named `__heap_base` of type `i32`")]
     HeapBaseNotFoundOrInvalid,
 
-    #[error("The runtime must not have the `start` function defined")]
+    // #[error("The runtime must not have the `start` function defined")]
     RuntimeHasStartFn,
 
-    #[error("Other: {0}")]
+    // #[error("Other: {0}")]
     Other(String),
 
-    #[error(transparent)]
-    Allocator(#[from] sp_allocator::Error),
+    // #[error(transparent)]
+    // Allocator(#[from] sp_allocator::Error),
 
-    #[error("Host function {0} execution failed with: {1}")]
+    // #[error("Host function {0} execution failed with: {1}")]
     FunctionExecution(String, String),
 
-    #[error("No table exported by wasm blob")]
+    // #[error("No table exported by wasm blob")]
     NoTable,
 
-    #[error("No table entry with index {0} in wasm blob exported table")]
+    // #[error("No table entry with index {0} in wasm blob exported table")]
     NoTableEntryWithIndex(u32),
 
-    #[error("Table element with index {0} is not a function in wasm blob exported table")]
+    // #[error("Table element with index {0} is not a function in wasm blob exported table")]
     TableElementIsNotAFunction(u32),
 
-    #[error("Table entry with index {0} in wasm blob is null")]
+    // #[error("Table entry with index {0} in wasm blob is null")]
     FunctionRefIsNull(u32),
 
-    #[error(transparent)]
-    RuntimeConstruction(#[from] WasmError),
+    // #[error(transparent)]
+    RuntimeConstruction(WasmError),
 
-    #[error("Shared memory is not supported")]
+    // #[error("Shared memory is not supported")]
     SharedMemUnsupported,
 
-    #[error("Imported globals are not supported yet")]
+    // #[error("Imported globals are not supported yet")]
     ImportedGlobalsUnsupported,
 
-    #[error("initializer expression can have only up to 2 expressions in wasm 1.0")]
+    // #[error("initializer expression can have only up to 2 expressions in wasm 1.0")]
     InitializerHasTooManyExpressions,
 
-    #[error("Invalid initializer expression provided {0}")]
+    // #[error("Invalid initializer expression provided {0}")]
     InvalidInitializerExpression(String),
 }
 
-impl wasmi::HostError for Error {}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl wasmi::HostError for Error {
+    fn typetag_name(&self) -> &'static str {
+        "Error"
+    }
+
+    #[doc(hidden)]
+    fn typetag_deserialize(&self) {}
+}
 
 impl From<&'static str> for Error {
     fn from(err: &'static str) -> Error {
@@ -124,8 +138,14 @@ impl From<String> for Error {
     }
 }
 
+impl From<wasmi::Error> for Error {
+    fn from(err: wasmi::Error) -> Error {
+        Error::Wasmi(err)
+    }
+}
+
 /// Type for errors occurring during Wasm runtime construction.
-#[derive(Debug, derive_more::Display)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum WasmError {
     /// Code could not be read from the state.
     CodeNotFound,
@@ -147,6 +167,12 @@ pub enum WasmError {
     Instantiation(String),
     /// Other error happenend.
     Other(String),
+}
+
+impl fmt::Display for WasmError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl std::error::Error for WasmError {}

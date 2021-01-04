@@ -21,11 +21,11 @@
 //! Sandboxing is baked by wasmi at the moment. In future, however, we would like to add/switch to
 //! a compiled execution engine.
 
-use crate::error::{Error, Result};
+use super::error::{Error, Result};
+use super::sandbox_primitives;
+use super::wasm_interface::{self, FunctionContext, Pointer, WordSize};
 use codec::{Decode, Encode};
-use sp_core::sandbox as sandbox_primitives;
-use sp_wasm_interface::{FunctionContext, Pointer, WordSize};
-use std::{collections::HashMap, rc::Rc};
+use std::{borrow::ToOwned, boxed::Box, collections::HashMap, rc::Rc, vec::Vec};
 use wasmi::{
     memory_units::Pages, Externals, ImportResolver, MemoryInstance, MemoryRef, Module,
     ModuleInstance, ModuleRef, RuntimeArgs, RuntimeValue, Trap, TrapKind,
@@ -187,7 +187,7 @@ fn trap(msg: &'static str) -> Trap {
 
 fn deserialize_result(serialized_result: &[u8]) -> std::result::Result<Option<RuntimeValue>, Trap> {
     use self::sandbox_primitives::HostError;
-    use sp_wasm_interface::ReturnValue;
+    use wasm_interface::ReturnValue;
     let result_val =
         std::result::Result::<ReturnValue, HostError>::decode(&mut &serialized_result[..])
             .map_err(|_| trap("Decoding Result<ReturnValue, HostError> failed!"))?;
@@ -225,7 +225,7 @@ impl<'a, FE: SandboxCapabilities + 'a> Externals for GuestExternals<'a, FE> {
             .as_ref()
             .iter()
             .cloned()
-            .map(sp_wasm_interface::Value::from)
+            .map(wasm_interface::Value::from)
             .collect::<Vec<_>>()
             .encode();
 
@@ -360,7 +360,7 @@ impl<FR> SandboxInstance<FR> {
     /// Get the value from a global with the given `name`.
     ///
     /// Returns `Some(_)` if the global could be found.
-    pub fn get_global_val(&self, name: &str) -> Option<sp_wasm_interface::Value> {
+    pub fn get_global_val(&self, name: &str) -> Option<wasm_interface::Value> {
         let global = self.instance.export_by_name(name)?.as_global()?.get();
 
         Some(global.into())

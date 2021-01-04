@@ -16,8 +16,10 @@
 
 //! Definitions for a wasm runtime.
 
-use crate::error::Error;
-use sp_wasm_interface::Value;
+use super::error::Error;
+use super::wasm_interface::Value;
+use std::boxed::Box;
+use std::vec::Vec;
 
 /// A method to be used to find the entrypoint when calling into the runtime
 ///
