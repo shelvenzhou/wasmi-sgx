@@ -16,13 +16,31 @@
 
 //! This module contains routines for accessing and altering a contract related state.
 
-use super::{ContractKey, exec::StorageKey};
+use super::{exec::StorageKey, ContractKey};
+use std::collections::btree_map::BTreeMap;
+use std::sync::SgxMutex;
 use std::vec::Vec;
 
 /// An error that means that the account requested either doesn't exist or represents a tombstone
 /// account.
 #[cfg_attr(test, derive(PartialEq, Eq, Debug))]
 pub struct ContractAbsentError;
+
+lazy_static! {
+    pub static ref STORAGE: SgxMutex<MockStorage> = SgxMutex::new(MockStorage::new());
+}
+
+pub struct MockStorage {
+    map: BTreeMap<(ContractKey, StorageKey), Option<Vec<u8>>>,
+}
+
+impl MockStorage {
+    pub fn new() -> MockStorage {
+        MockStorage {
+            map: BTreeMap::new(),
+        }
+    }
+}
 
 pub struct Storage;
 
@@ -32,10 +50,13 @@ impl Storage {
     /// The read is performed from the `trie_id` only. The `address` is not necessary. If the contract
     /// doesn't store under the given `key` `None` is returned.
     pub fn read(contract_key: ContractKey, key: &StorageKey) -> Option<Vec<u8>> {
-        // TODO: implement storage read and write
         // child::get_raw(&crate::child_trie_info(&trie_id), &blake2_256(key))
 
-        None
+        let storage = STORAGE.lock().unwrap();
+        match storage.map.get(&(contract_key, *key)) {
+            Some(val) => val.clone(),
+            None => None,
+        }
     }
 
     /// Update a storage entry into a contract's kv storage.
@@ -118,6 +139,14 @@ impl Storage {
         //     Some(new_value) => child::put_raw(&child_trie_info, &hashed_key, &new_value[..]),
         //     None => child::kill(&child_trie_info, &hashed_key),
         // }
+
+        let mut storage = STORAGE.lock().unwrap();
+        match opt_new_value {
+            Some(new_value) => storage
+                .map
+                .insert((contract_key, key.clone()), Some(new_value)),
+            None => storage.map.remove(&(contract_key, *key)),
+        };
 
         Ok(())
     }
