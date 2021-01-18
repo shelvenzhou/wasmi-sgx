@@ -24,6 +24,8 @@ extern crate sgx_types;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+#[macro_use]
+extern crate lazy_static;
 extern crate wabt;
 extern crate wasmi;
 
@@ -38,6 +40,7 @@ use wasmi::RuntimeValue;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+
 //use serde::{Serialize, Serializer, Deserialize, Deserializer};
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SgxWasmAction {

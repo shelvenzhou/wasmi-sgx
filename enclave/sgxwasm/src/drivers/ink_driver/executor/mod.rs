@@ -37,3 +37,7 @@ mod executor;
 use super::allocator;
 #[doc(hidden)]
 use super::wasm_interface;
+
+pub use common::sandbox;
+pub use common::sandbox_primitives;
+pub use common::sandbox_primitives::HostError;

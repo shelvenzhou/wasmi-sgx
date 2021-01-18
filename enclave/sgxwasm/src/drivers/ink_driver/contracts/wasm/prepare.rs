@@ -18,13 +18,14 @@
 //! wasm module before execution. It also extracts some essential information
 //! from a module.
 
-use crate::wasm::env_def::ImportSatisfyCheck;
-use crate::wasm::PrefabWasmModule;
-use crate::{Config, Schedule};
+use super::env_def::ImportSatisfyCheck;
+use super::PrefabWasmModule;
+use super::Schedule;
+use super::{exec, schedule};
 
 use parity_wasm::elements::{self, External, Internal, MemoryType, Type, ValueType};
 use pwasm_utils;
-use sp_std::prelude::*;
+use std::vec::Vec;
 
 /// Currently, all imported functions must be located inside this module. We might support
 /// additional modules for versioning later.
@@ -34,18 +35,18 @@ pub const IMPORT_MODULE_FN: &str = "seal0";
 /// compiler toolchains might not support specifying other modules than "env" for memory imports.
 pub const IMPORT_MODULE_MEMORY: &str = "env";
 
-struct ContractModule<'a, T: Config> {
+struct ContractModule<'a> {
     /// A deserialized module. The module is valid (this is Guaranteed by `new` method).
     module: elements::Module,
-    schedule: &'a Schedule<T>,
+    schedule: &'a Schedule,
 }
 
-impl<'a, T: Config> ContractModule<'a, T> {
+impl<'a> ContractModule<'a> {
     /// Creates a new instance of `ContractModule`.
     ///
     /// Returns `Err` if the `original_code` couldn't be decoded or
     /// if it contains an invalid module.
-    fn new(original_code: &[u8], schedule: &'a Schedule<T>) -> Result<Self, &'static str> {
+    fn new(original_code: &[u8], schedule: &'a Schedule) -> Result<Self, &'static str> {
         use wasmi_validation::{validate_module, PlainValidator};
 
         let module =
@@ -374,9 +375,9 @@ impl<'a, T: Config> ContractModule<'a, T> {
     }
 }
 
-fn get_memory_limits<T: Config>(
+fn get_memory_limits(
     module: Option<&MemoryType>,
-    schedule: &Schedule<T>,
+    schedule: &Schedule,
 ) -> Result<(u32, u32), &'static str> {
     if let Some(memory_type) = module {
         // Inspect the module to extract the initial and maximum page count.
@@ -416,9 +417,9 @@ fn get_memory_limits<T: Config>(
 /// - all imported functions from the external environment matches defined by `env` module,
 ///
 /// The preprocessing includes injecting code for gas metering and metering the height of stack.
-pub fn prepare_contract<C: ImportSatisfyCheck, T: Config>(
+pub fn prepare_contract<C: ImportSatisfyCheck>(
     original_code: &[u8],
-    schedule: &Schedule<T>,
+    schedule: &Schedule,
 ) -> Result<PrefabWasmModule, &'static str> {
     let mut contract_module = ContractModule::new(original_code, schedule)?;
     contract_module.scan_exports()?;
@@ -471,7 +472,7 @@ pub mod benchmarking {
     /// Prepare function that neither checks nor instruments the passed in code.
     pub fn prepare_contract<T: Config>(
         original_code: &[u8],
-        schedule: &Schedule<T>,
+        schedule: &Schedule,
     ) -> Result<PrefabWasmModule, &'static str> {
         let contract_module = ContractModule::new(original_code, schedule)?;
         let memory_limits = get_memory_limits(contract_module.scan_imports::<()>(&[])?, schedule)?;
@@ -488,7 +489,7 @@ pub mod benchmarking {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{exec::Ext, Limits};
+    use super::{exec::Ext, schedule::Limits};
     use assert_matches::assert_matches;
     use std::fmt;
 

@@ -38,21 +38,18 @@
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
+use std::vec::Vec;
 
-pub use sp_core::sandbox::HostError;
-pub use sp_wasm_interface::{ReturnValue, Value};
+pub use super::executor::HostError;
+pub use super::executor::{sandbox, sandbox_primitives};
+pub use super::wasm_interface::{ReturnValue, Value};
 
 mod imp {
-    #[cfg(feature = "std")]
-    include!("../with_std.rs");
-
-    #[cfg(not(feature = "std"))]
-    include!("../without_std.rs");
+    include!("with_std.rs");
 }
 
 /// Error that can occur while using this crate.
-#[derive(sp_core::RuntimeDebug)]
+#[derive(Debug)]
 pub enum Error {
     /// Module is not valid, couldn't be instantiated.
     Module,

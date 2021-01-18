@@ -37,11 +37,43 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+/// Numeric range of a transaction weight.
+pub type Weight = u64;
+
+pub const WEIGHT_PER_SECOND: Weight = 1_000_000_000_000;
+pub const WEIGHT_PER_MILLIS: Weight = WEIGHT_PER_SECOND / 1000; // 1_000_000_000
+pub const WEIGHT_PER_MICROS: Weight = WEIGHT_PER_MILLIS / 1000; // 1_000_000
+pub const WEIGHT_PER_NANOS: Weight = WEIGHT_PER_MICROS / 1000; // 1_000
+
+/// The weight of database operations that the runtime can invoke.
+#[derive(Clone, Copy, Eq, PartialEq, Default)]
+pub struct RuntimeDbWeight {
+    pub read: Weight,
+    pub write: Weight,
+}
+
+impl RuntimeDbWeight {
+    pub fn reads(self, r: Weight) -> Weight {
+        self.read.saturating_mul(r)
+    }
+
+    pub fn writes(self, w: Weight) -> Weight {
+        self.write.saturating_mul(w)
+    }
+
+    pub fn reads_writes(self, r: Weight, w: Weight) -> Weight {
+        let read_weight = self.read.saturating_mul(r);
+        let write_weight = self.write.saturating_mul(w);
+        read_weight.saturating_add(write_weight)
+    }
+}
+
+/// By default, Substrate uses RocksDB, so this will be the weight used throughout
+/// the runtime.
+pub const RocksDbWeight: RuntimeDbWeight = RuntimeDbWeight {
+    read: 25 * WEIGHT_PER_MICROS,   // ~25 µs @ 200,000 items
+    write: 100 * WEIGHT_PER_MICROS, // ~100 µs @ 200,000 items
 };
-use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_contracts.
 pub trait WeightInfo {
@@ -145,273 +177,273 @@ pub trait WeightInfo {
 }
 
 /// Weights for pallet_contracts using the Substrate node and recommended hardware.
-pub struct SubstrateWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+pub struct SubstrateWeight;
+impl WeightInfo for SubstrateWeight {
     fn update_schedule() -> Weight {
         (35_214_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(1 as Weight))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+            .saturating_add(RocksDbWeight.reads(1 as Weight))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
     }
     fn put_code(n: u32) -> Weight {
         (0 as Weight)
             .saturating_add((109_242_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(1 as Weight))
-            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(1 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn instantiate(n: u32, s: u32) -> Weight {
         (195_276_000 as Weight)
             .saturating_add((35_000 as Weight).saturating_mul(n as Weight))
             .saturating_add((2_244_000 as Weight).saturating_mul(s as Weight))
-            .saturating_add(T::DbWeight::get().reads(6 as Weight))
-            .saturating_add(T::DbWeight::get().writes(3 as Weight))
+            .saturating_add(RocksDbWeight.reads(6 as Weight))
+            .saturating_add(RocksDbWeight.writes(3 as Weight))
     }
     fn call() -> Weight {
         (207_142_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
-            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn claim_surcharge() -> Weight {
         (489_633_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(3 as Weight))
-            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(3 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn seal_caller(r: u32) -> Weight {
         (136_550_000 as Weight)
             .saturating_add((373_182_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_address(r: u32) -> Weight {
         (136_329_000 as Weight)
             .saturating_add((373_392_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_gas_left(r: u32) -> Weight {
         (111_577_000 as Weight)
             .saturating_add((373_536_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_balance(r: u32) -> Weight {
         (157_531_000 as Weight)
             .saturating_add((810_382_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_value_transferred(r: u32) -> Weight {
         (143_801_000 as Weight)
             .saturating_add((369_769_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_minimum_balance(r: u32) -> Weight {
         (133_546_000 as Weight)
             .saturating_add((370_036_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_tombstone_deposit(r: u32) -> Weight {
         (138_568_000 as Weight)
             .saturating_add((370_322_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_rent_allowance(r: u32) -> Weight {
         (144_431_000 as Weight)
             .saturating_add((851_810_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_block_number(r: u32) -> Weight {
         (133_237_000 as Weight)
             .saturating_add((369_156_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_now(r: u32) -> Weight {
         (139_700_000 as Weight)
             .saturating_add((368_961_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_weight_to_fee(r: u32) -> Weight {
         (149_395_000 as Weight)
             .saturating_add((625_812_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_gas(r: u32) -> Weight {
         (125_777_000 as Weight)
             .saturating_add((187_585_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_input(r: u32) -> Weight {
         (132_584_000 as Weight)
             .saturating_add((7_661_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_input_per_kb(n: u32) -> Weight {
         (143_408_000 as Weight)
             .saturating_add((274_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_return(r: u32) -> Weight {
         (126_257_000 as Weight)
             .saturating_add((5_455_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_return_per_kb(n: u32) -> Weight {
         (133_286_000 as Weight)
             .saturating_add((698_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_terminate(r: u32) -> Weight {
         (130_607_000 as Weight)
             .saturating_add((358_370_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
-            .saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(T::DbWeight::get().writes((3 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((2 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes((3 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_restore_to(r: u32) -> Weight {
         (233_645_000 as Weight)
             .saturating_add((135_355_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
-            .saturating_add(T::DbWeight::get().reads((3 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(T::DbWeight::get().writes((4 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads((3 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes((4 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_restore_to_per_delta(d: u32) -> Weight {
         (74_573_000 as Weight)
             .saturating_add((3_768_682_000 as Weight).saturating_mul(d as Weight))
-            .saturating_add(T::DbWeight::get().reads(7 as Weight))
-            .saturating_add(T::DbWeight::get().reads((100 as Weight).saturating_mul(d as Weight)))
-            .saturating_add(T::DbWeight::get().writes(5 as Weight))
-            .saturating_add(T::DbWeight::get().writes((100 as Weight).saturating_mul(d as Weight)))
+            .saturating_add(RocksDbWeight.reads(7 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(d as Weight)))
+            .saturating_add(RocksDbWeight.writes(5 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(d as Weight)))
     }
     fn seal_random(r: u32) -> Weight {
         (140_286_000 as Weight)
             .saturating_add((950_890_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_deposit_event(r: u32) -> Weight {
         (167_735_000 as Weight)
             .saturating_add((1_375_429_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_deposit_event_per_topic_and_kb(t: u32, n: u32) -> Weight {
         (1_715_857_000 as Weight)
             .saturating_add((760_777_000 as Weight).saturating_mul(t as Weight))
             .saturating_add((241_853_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
-            .saturating_add(T::DbWeight::get().reads((100 as Weight).saturating_mul(t as Weight)))
-            .saturating_add(T::DbWeight::get().writes((100 as Weight).saturating_mul(t as Weight)))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(t as Weight)))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(t as Weight)))
     }
     fn seal_set_rent_allowance(r: u32) -> Weight {
         (156_911_000 as Weight)
             .saturating_add((1_006_139_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
     }
     fn seal_set_storage(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((14_938_793_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
-            .saturating_add(T::DbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-            .saturating_add(T::DbWeight::get().writes((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_set_storage_per_kb(n: u32) -> Weight {
         (2_300_169_000 as Weight)
             .saturating_add((204_543_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
-            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn seal_clear_storage(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((5_140_241_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
-            .saturating_add(T::DbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-            .saturating_add(T::DbWeight::get().writes((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_get_storage(r: u32) -> Weight {
         (45_212_000 as Weight)
             .saturating_add((1_131_504_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
-            .saturating_add(T::DbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_get_storage_per_kb(n: u32) -> Weight {
         (885_531_000 as Weight)
             .saturating_add((148_986_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_transfer(r: u32) -> Weight {
         (92_276_000 as Weight)
             .saturating_add((6_216_852_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
-            .saturating_add(T::DbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-            .saturating_add(T::DbWeight::get().writes((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_call(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((10_734_719_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(5 as Weight))
-            .saturating_add(T::DbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_call_per_transfer_input_output_kb(t: u32, i: u32, o: u32) -> Weight {
         (12_735_614_000 as Weight)
             .saturating_add((2_870_730_000 as Weight).saturating_mul(t as Weight))
             .saturating_add((52_569_000 as Weight).saturating_mul(i as Weight))
             .saturating_add((73_956_000 as Weight).saturating_mul(o as Weight))
-            .saturating_add(T::DbWeight::get().reads(105 as Weight))
-            .saturating_add(T::DbWeight::get().reads((101 as Weight).saturating_mul(t as Weight)))
-            .saturating_add(T::DbWeight::get().writes((101 as Weight).saturating_mul(t as Weight)))
+            .saturating_add(RocksDbWeight.reads(105 as Weight))
+            .saturating_add(RocksDbWeight.reads((101 as Weight).saturating_mul(t as Weight)))
+            .saturating_add(RocksDbWeight.writes((101 as Weight).saturating_mul(t as Weight)))
     }
     fn seal_instantiate(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((22_365_908_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(6 as Weight))
-            .saturating_add(T::DbWeight::get().reads((300 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(T::DbWeight::get().writes(2 as Weight))
-            .saturating_add(T::DbWeight::get().writes((200 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(6 as Weight))
+            .saturating_add(RocksDbWeight.reads((300 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
+            .saturating_add(RocksDbWeight.writes((200 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_instantiate_per_input_output_salt_kb(i: u32, o: u32, s: u32) -> Weight {
         (18_899_296_000 as Weight)
             .saturating_add((53_289_000 as Weight).saturating_mul(i as Weight))
             .saturating_add((76_026_000 as Weight).saturating_mul(o as Weight))
             .saturating_add((281_097_000 as Weight).saturating_mul(s as Weight))
-            .saturating_add(T::DbWeight::get().reads(207 as Weight))
-            .saturating_add(T::DbWeight::get().writes(202 as Weight))
+            .saturating_add(RocksDbWeight.reads(207 as Weight))
+            .saturating_add(RocksDbWeight.writes(202 as Weight))
     }
     fn seal_hash_sha2_256(r: u32) -> Weight {
         (136_601_000 as Weight)
             .saturating_add((323_373_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_sha2_256_per_kb(n: u32) -> Weight {
         (777_563_000 as Weight)
             .saturating_add((423_353_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_keccak_256(r: u32) -> Weight {
         (136_771_000 as Weight)
             .saturating_add((337_881_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_keccak_256_per_kb(n: u32) -> Weight {
         (337_906_000 as Weight)
             .saturating_add((336_778_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_256(r: u32) -> Weight {
         (131_040_000 as Weight)
             .saturating_add((312_992_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_256_per_kb(n: u32) -> Weight {
         (693_415_000 as Weight)
             .saturating_add((152_745_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_128(r: u32) -> Weight {
         (135_654_000 as Weight)
             .saturating_add((311_271_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_128_per_kb(n: u32) -> Weight {
         (839_521_000 as Weight)
             .saturating_add((153_146_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn instr_i64const(r: u32) -> Weight {
         (26_679_000 as Weight).saturating_add((3_155_000 as Weight).saturating_mul(r as Weight))
@@ -572,283 +604,269 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 impl WeightInfo for () {
     fn update_schedule() -> Weight {
         (35_214_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+            .saturating_add(RocksDbWeight.reads(1 as Weight))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
     }
     fn put_code(n: u32) -> Weight {
         (0 as Weight)
             .saturating_add((109_242_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(1 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn instantiate(n: u32, s: u32) -> Weight {
         (195_276_000 as Weight)
             .saturating_add((35_000 as Weight).saturating_mul(n as Weight))
             .saturating_add((2_244_000 as Weight).saturating_mul(s as Weight))
-            .saturating_add(RocksDbWeight::get().reads(6 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(3 as Weight))
+            .saturating_add(RocksDbWeight.reads(6 as Weight))
+            .saturating_add(RocksDbWeight.writes(3 as Weight))
     }
     fn call() -> Weight {
         (207_142_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn claim_surcharge() -> Weight {
         (489_633_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(3 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn seal_caller(r: u32) -> Weight {
         (136_550_000 as Weight)
             .saturating_add((373_182_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_address(r: u32) -> Weight {
         (136_329_000 as Weight)
             .saturating_add((373_392_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_gas_left(r: u32) -> Weight {
         (111_577_000 as Weight)
             .saturating_add((373_536_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_balance(r: u32) -> Weight {
         (157_531_000 as Weight)
             .saturating_add((810_382_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_value_transferred(r: u32) -> Weight {
         (143_801_000 as Weight)
             .saturating_add((369_769_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_minimum_balance(r: u32) -> Weight {
         (133_546_000 as Weight)
             .saturating_add((370_036_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_tombstone_deposit(r: u32) -> Weight {
         (138_568_000 as Weight)
             .saturating_add((370_322_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_rent_allowance(r: u32) -> Weight {
         (144_431_000 as Weight)
             .saturating_add((851_810_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_block_number(r: u32) -> Weight {
         (133_237_000 as Weight)
             .saturating_add((369_156_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_now(r: u32) -> Weight {
         (139_700_000 as Weight)
             .saturating_add((368_961_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_weight_to_fee(r: u32) -> Weight {
         (149_395_000 as Weight)
             .saturating_add((625_812_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_gas(r: u32) -> Weight {
         (125_777_000 as Weight)
             .saturating_add((187_585_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_input(r: u32) -> Weight {
         (132_584_000 as Weight)
             .saturating_add((7_661_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_input_per_kb(n: u32) -> Weight {
         (143_408_000 as Weight)
             .saturating_add((274_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_return(r: u32) -> Weight {
         (126_257_000 as Weight)
             .saturating_add((5_455_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_return_per_kb(n: u32) -> Weight {
         (133_286_000 as Weight)
             .saturating_add((698_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_terminate(r: u32) -> Weight {
         (130_607_000 as Weight)
             .saturating_add((358_370_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(RocksDbWeight::get().writes((3 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((2 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes((3 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_restore_to(r: u32) -> Weight {
         (233_645_000 as Weight)
             .saturating_add((135_355_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((3 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(RocksDbWeight::get().writes((4 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads((3 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes((4 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_restore_to_per_delta(d: u32) -> Weight {
         (74_573_000 as Weight)
             .saturating_add((3_768_682_000 as Weight).saturating_mul(d as Weight))
-            .saturating_add(RocksDbWeight::get().reads(7 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((100 as Weight).saturating_mul(d as Weight)))
-            .saturating_add(RocksDbWeight::get().writes(5 as Weight))
-            .saturating_add(
-                RocksDbWeight::get().writes((100 as Weight).saturating_mul(d as Weight)),
-            )
+            .saturating_add(RocksDbWeight.reads(7 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(d as Weight)))
+            .saturating_add(RocksDbWeight.writes(5 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(d as Weight)))
     }
     fn seal_random(r: u32) -> Weight {
         (140_286_000 as Weight)
             .saturating_add((950_890_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_deposit_event(r: u32) -> Weight {
         (167_735_000 as Weight)
             .saturating_add((1_375_429_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_deposit_event_per_topic_and_kb(t: u32, n: u32) -> Weight {
         (1_715_857_000 as Weight)
             .saturating_add((760_777_000 as Weight).saturating_mul(t as Weight))
             .saturating_add((241_853_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((100 as Weight).saturating_mul(t as Weight)))
-            .saturating_add(
-                RocksDbWeight::get().writes((100 as Weight).saturating_mul(t as Weight)),
-            )
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(t as Weight)))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(t as Weight)))
     }
     fn seal_set_rent_allowance(r: u32) -> Weight {
         (156_911_000 as Weight)
             .saturating_add((1_006_139_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
     }
     fn seal_set_storage(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((14_938_793_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-            .saturating_add(
-                RocksDbWeight::get().writes((100 as Weight).saturating_mul(r as Weight)),
-            )
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_set_storage_per_kb(n: u32) -> Weight {
         (2_300_169_000 as Weight)
             .saturating_add((204_543_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
     }
     fn seal_clear_storage(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((5_140_241_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-            .saturating_add(
-                RocksDbWeight::get().writes((100 as Weight).saturating_mul(r as Weight)),
-            )
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_get_storage(r: u32) -> Weight {
         (45_212_000 as Weight)
             .saturating_add((1_131_504_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_get_storage_per_kb(n: u32) -> Weight {
         (885_531_000 as Weight)
             .saturating_add((148_986_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
     }
     fn seal_transfer(r: u32) -> Weight {
         (92_276_000 as Weight)
             .saturating_add((6_216_852_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-            .saturating_add(
-                RocksDbWeight::get().writes((100 as Weight).saturating_mul(r as Weight)),
-            )
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(1 as Weight))
+            .saturating_add(RocksDbWeight.writes((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_call(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((10_734_719_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(5 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((100 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.reads(5 as Weight))
+            .saturating_add(RocksDbWeight.reads((100 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_call_per_transfer_input_output_kb(t: u32, i: u32, o: u32) -> Weight {
         (12_735_614_000 as Weight)
             .saturating_add((2_870_730_000 as Weight).saturating_mul(t as Weight))
             .saturating_add((52_569_000 as Weight).saturating_mul(i as Weight))
             .saturating_add((73_956_000 as Weight).saturating_mul(o as Weight))
-            .saturating_add(RocksDbWeight::get().reads(105 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((101 as Weight).saturating_mul(t as Weight)))
-            .saturating_add(
-                RocksDbWeight::get().writes((101 as Weight).saturating_mul(t as Weight)),
-            )
+            .saturating_add(RocksDbWeight.reads(105 as Weight))
+            .saturating_add(RocksDbWeight.reads((101 as Weight).saturating_mul(t as Weight)))
+            .saturating_add(RocksDbWeight.writes((101 as Weight).saturating_mul(t as Weight)))
     }
     fn seal_instantiate(r: u32) -> Weight {
         (0 as Weight)
             .saturating_add((22_365_908_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(6 as Weight))
-            .saturating_add(RocksDbWeight::get().reads((300 as Weight).saturating_mul(r as Weight)))
-            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
-            .saturating_add(
-                RocksDbWeight::get().writes((200 as Weight).saturating_mul(r as Weight)),
-            )
+            .saturating_add(RocksDbWeight.reads(6 as Weight))
+            .saturating_add(RocksDbWeight.reads((300 as Weight).saturating_mul(r as Weight)))
+            .saturating_add(RocksDbWeight.writes(2 as Weight))
+            .saturating_add(RocksDbWeight.writes((200 as Weight).saturating_mul(r as Weight)))
     }
     fn seal_instantiate_per_input_output_salt_kb(i: u32, o: u32, s: u32) -> Weight {
         (18_899_296_000 as Weight)
             .saturating_add((53_289_000 as Weight).saturating_mul(i as Weight))
             .saturating_add((76_026_000 as Weight).saturating_mul(o as Weight))
             .saturating_add((281_097_000 as Weight).saturating_mul(s as Weight))
-            .saturating_add(RocksDbWeight::get().reads(207 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(202 as Weight))
+            .saturating_add(RocksDbWeight.reads(207 as Weight))
+            .saturating_add(RocksDbWeight.writes(202 as Weight))
     }
     fn seal_hash_sha2_256(r: u32) -> Weight {
         (136_601_000 as Weight)
             .saturating_add((323_373_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_sha2_256_per_kb(n: u32) -> Weight {
         (777_563_000 as Weight)
             .saturating_add((423_353_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_keccak_256(r: u32) -> Weight {
         (136_771_000 as Weight)
             .saturating_add((337_881_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_keccak_256_per_kb(n: u32) -> Weight {
         (337_906_000 as Weight)
             .saturating_add((336_778_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_256(r: u32) -> Weight {
         (131_040_000 as Weight)
             .saturating_add((312_992_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_256_per_kb(n: u32) -> Weight {
         (693_415_000 as Weight)
             .saturating_add((152_745_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_128(r: u32) -> Weight {
         (135_654_000 as Weight)
             .saturating_add((311_271_000 as Weight).saturating_mul(r as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn seal_hash_blake2_128_per_kb(n: u32) -> Weight {
         (839_521_000 as Weight)
             .saturating_add((153_146_000 as Weight).saturating_mul(n as Weight))
-            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight.reads(4 as Weight))
     }
     fn instr_i64const(r: u32) -> Weight {
         (26_679_000 as Weight).saturating_add((3_155_000 as Weight).saturating_mul(r as Weight))

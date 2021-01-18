@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate. If not, see <http://www.gnu.org/licenses/>.
 
+use super::exec::Ext;
 use super::Runtime;
-use crate::exec::Ext;
 
+use super::sandbox::{self, Value};
 use parity_wasm::elements::{FunctionType, ValueType};
-use sp_sandbox::Value;
 
 #[macro_use]
 pub(crate) mod macros;
@@ -66,10 +66,8 @@ impl ConvertibleToWasm for u64 {
     }
 }
 
-pub(crate) type HostFunc<E> = fn(
-    &mut Runtime<E>,
-    &[sp_sandbox::Value],
-) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError>;
+pub(crate) type HostFunc<E> =
+    fn(&mut Runtime<E>, &[sandbox::Value]) -> Result<sandbox::ReturnValue, sandbox::HostError>;
 
 pub(crate) trait FunctionImplProvider<E: Ext> {
     fn impls<F: FnMut(&[u8], HostFunc<E>)>(f: &mut F);

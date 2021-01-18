@@ -26,52 +26,24 @@
 //! this guarantees that every instrumented contract code in cache cannot have the version equal to the current one.
 //! Thus, before executing a contract it should be reinstrument with new schedule.
 
-use crate::wasm::{prepare, runtime::Env, PrefabWasmModule};
-use crate::{CodeHash, CodeStorage, Config, PristineCode, Schedule};
-use frame_support::StorageMap;
-use sp_core::crypto::UncheckedFrom;
-use sp_runtime::traits::Hash;
-use sp_std::prelude::*;
+use super::{prepare, runtime::Env, PrefabWasmModule};
+use super::{ContractKey, Schedule};
+use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::hash::{Hash, Hasher};
+use std::sync::SgxMutex;
+use std::vec::Vec;
+
+lazy_static! {
+    pub static ref CODE_STORAGE: SgxMutex<CodeCache> = SgxMutex::new(CodeCache::new());
+}
 
 /// Put code in the storage. The hash of code is used as a key and is returned
 /// as a result of this function.
 ///
 /// This function instruments the given code and caches it in the storage.
-pub fn save<T: Config>(
-    original_code: Vec<u8>,
-    schedule: &Schedule<T>,
-) -> Result<CodeHash<T>, &'static str>
-where
-    T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
-{
-    let prefab_module = prepare::prepare_contract::<Env, T>(&original_code, schedule)?;
-    let code_hash = T::Hashing::hash(&original_code);
-
-    <CodeStorage<T>>::insert(code_hash, prefab_module);
-    <PristineCode<T>>::insert(code_hash, original_code);
-
-    Ok(code_hash)
-}
-
-/// Version of `save` to be used in runtime benchmarks.
-//
-/// This version neither checks nor instruments the passed in code. This is useful
-/// when code needs to be benchmarked without the injected instrumentation.
-#[cfg(feature = "runtime-benchmarks")]
-pub fn save_raw<T: Config>(
-    original_code: Vec<u8>,
-    schedule: &Schedule<T>,
-) -> Result<CodeHash<T>, &'static str>
-where
-    T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
-{
-    let prefab_module = prepare::benchmarking::prepare_contract::<T>(&original_code, schedule)?;
-    let code_hash = T::Hashing::hash(&original_code);
-
-    <CodeStorage<T>>::insert(code_hash, prefab_module);
-    <PristineCode<T>>::insert(code_hash, original_code);
-
-    Ok(code_hash)
+pub fn save(original_code: Vec<u8>, schedule: &Schedule) -> Result<ContractKey, &'static str> {
+    let mut code_cache = CODE_STORAGE.lock().unwrap();
+    code_cache.save(original_code, schedule)
 }
 
 /// Load code with the given code hash.
@@ -79,24 +51,63 @@ where
 /// If the module was instrumented with a lower version of schedule than
 /// the current one given as an argument, then this function will perform
 /// re-instrumentation and update the cache in the storage.
-pub fn load<T: Config>(
-    code_hash: &CodeHash<T>,
-    schedule: &Schedule<T>,
-) -> Result<PrefabWasmModule, &'static str>
-where
-    T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
-{
-    let mut prefab_module = <CodeStorage<T>>::get(code_hash).ok_or_else(|| "code is not found")?;
+pub fn load(
+    contract_key: ContractKey,
+    schedule: &Schedule,
+) -> Result<PrefabWasmModule, &'static str> {
+    let mut code_cache = CODE_STORAGE.lock().unwrap();
+    code_cache.load(contract_key, schedule)
+}
 
-    if prefab_module.schedule_version < schedule.version {
-        // The current schedule version is greater than the version of the one cached
-        // in the storage.
-        //
-        // We need to re-instrument the code with the latest schedule here.
-        let original_code =
-            <PristineCode<T>>::get(code_hash).ok_or_else(|| "pristine code is not found")?;
-        prefab_module = prepare::prepare_contract::<Env, T>(&original_code, schedule)?;
-        <CodeStorage<T>>::insert(&code_hash, &prefab_module);
+pub struct CodeCache {
+    code_counter: u64,
+    CodeStorage: HashMap<ContractKey, PrefabWasmModule>,
+    PristineCode: HashMap<ContractKey, Vec<u8>>,
+}
+
+impl CodeCache {
+    pub fn new() -> CodeCache {
+        return CodeCache {
+            code_counter: 0,
+            CodeStorage: HashMap::new(),
+            PristineCode: HashMap::new(),
+        };
     }
-    Ok(prefab_module)
+
+    fn calculate_hash<T: Hash>(&mut self, t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+
+        s.write_u64(self.code_counter);
+        self.code_counter += 1;
+
+        t.hash(&mut s);
+        s.finish()
+    }
+
+    pub fn save(
+        &mut self,
+        original_code: Vec<u8>,
+        schedule: &Schedule,
+    ) -> Result<ContractKey, &'static str> {
+        let prefab_module = prepare::prepare_contract::<Env>(&original_code, schedule)?;
+        let contract_key = self.calculate_hash(&original_code);
+
+        self.CodeStorage.insert(contract_key, prefab_module);
+        self.PristineCode.insert(contract_key, original_code);
+
+        Ok(contract_key)
+    }
+
+    pub fn load(
+        &mut self,
+        contract_key: ContractKey,
+        schedule: &Schedule,
+    ) -> Result<PrefabWasmModule, &'static str> {
+        let prefab_module = self
+            .CodeStorage
+            .get(&contract_key)
+            .ok_or_else(|| "code is not found")?;
+
+        Ok(prefab_module.clone())
+    }
 }

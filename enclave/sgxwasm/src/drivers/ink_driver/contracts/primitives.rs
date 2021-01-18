@@ -16,6 +16,7 @@
 
 //! A crate that hosts a common definitions that are relevant for the pallet-contracts.
 
+use super::Error;
 use bitflags::bitflags;
 use codec::{Decode, Encode};
 use std::vec::Vec;
@@ -51,15 +52,13 @@ pub enum DispatchError {
     /// A bad origin.
     BadOrigin,
     /// A custom error in a module.
-    Module {
-        /// Module index, matching the metadata module index.
-        index: u8,
-        /// Module specific error value.
-        error: u8,
-        /// Optional error message.
-        #[codec(skip)]
-        message: Option<&'static str>,
-    },
+    Module(Error),
+}
+
+impl From<&'static str> for DispatchError {
+    fn from(err: &'static str) -> Self {
+        DispatchError::Other(err)
+    }
 }
 
 /// Result type of a `bare_call` call.

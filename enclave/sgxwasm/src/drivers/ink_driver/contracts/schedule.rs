@@ -17,17 +17,12 @@
 //! This module contains the cost schedule and supporting code that constructs a
 //! sane default schedule from a `WeightInfo` implementation.
 
-use crate::{weights::WeightInfo, Config};
+use super::weights::{SubstrateWeight, Weight, WeightInfo};
 
 use codec::{Decode, Encode};
-use frame_support::weights::Weight;
-use pallet_contracts_proc_macro::{ScheduleDebug, WeightDebug};
 use parity_wasm::elements;
 use pwasm_utils::rules;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-use sp_runtime::RuntimeDebug;
-use sp_std::{marker::PhantomData, vec::Vec};
+use std::vec::Vec;
 
 /// How many API calls are executed in a single batch. The reason for increasing the amount
 /// of API calls in batches (per benchmark component increase) is so that the linear regression
@@ -39,10 +34,8 @@ pub const API_BENCHMARK_BATCH_SIZE: u32 = 100;
 pub const INSTR_BENCHMARK_BATCH_SIZE: u32 = 1_000;
 
 /// Definition of the cost schedule and other parameterizations for wasm vm.
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "std", serde(bound(serialize = "", deserialize = "")))]
-#[derive(Clone, Encode, Decode, PartialEq, Eq, ScheduleDebug)]
-pub struct Schedule<T: Config> {
+#[derive(Clone, Encode, Decode, PartialEq, Eq)]
+pub struct Schedule {
     /// Version of the schedule.
     pub version: u32,
 
@@ -54,15 +47,14 @@ pub struct Schedule<T: Config> {
     pub limits: Limits,
 
     /// The weights for individual wasm instructions.
-    pub instruction_weights: InstructionWeights<T>,
+    pub instruction_weights: InstructionWeights,
 
     /// The weights for each imported function a contract is allowed to call.
-    pub host_fn_weights: HostFnWeights<T>,
+    pub host_fn_weights: HostFnWeights,
 }
 
 /// Describes the upper limits on various metrics.
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq)]
 pub struct Limits {
     /// The maximum number of topics supported by an event.
     pub event_topics: u32,
@@ -129,9 +121,8 @@ pub struct Limits {
 ///    individual values to derive (by subtraction) the weight of all other instructions
 ///    that use them as supporting instructions. Supporting means mainly pushing arguments
 ///    and dropping return values in order to maintain a valid module.
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Clone, Encode, Decode, PartialEq, Eq, WeightDebug)]
-pub struct InstructionWeights<T: Config> {
+#[derive(Clone, Encode, Decode, PartialEq, Eq)]
+pub struct InstructionWeights {
     pub i64const: u32,
     pub i64load: u32,
     pub i64store: u32,
@@ -183,14 +174,11 @@ pub struct InstructionWeights<T: Config> {
     pub i64shru: u32,
     pub i64rotl: u32,
     pub i64rotr: u32,
-    /// The type parameter is used in the default implementation.
-    pub _phantom: PhantomData<T>,
 }
 
 /// Describes the weight for each imported function that a contract is allowed to call.
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Clone, Encode, Decode, PartialEq, Eq, WeightDebug)]
-pub struct HostFnWeights<T: Config> {
+#[derive(Clone, Encode, Decode, PartialEq, Eq)]
+pub struct HostFnWeights {
     /// Weight of calling `seal_caller`.
     pub caller: Weight,
 
@@ -328,9 +316,6 @@ pub struct HostFnWeights<T: Config> {
 
     /// Weight per byte hashed by `seal_hash_blake2_128`.
     pub hash_blake2_128_per_byte: Weight,
-
-    /// The type parameter is used in the default implementation.
-    pub _phantom: PhantomData<T>,
 }
 
 macro_rules! replace_token {
@@ -341,13 +326,13 @@ macro_rules! replace_token {
 
 macro_rules! call_zero {
 	($name:ident, $( $arg:expr ),*) => {
-		T::WeightInfo::$name($( replace_token!($arg 0) ),*)
+		SubstrateWeight::$name($( replace_token!($arg 0) ),*)
 	};
 }
 
 macro_rules! cost_args {
 	($name:ident, $( $arg: expr ),+) => {
-		(T::WeightInfo::$name($( $arg ),+).saturating_sub(call_zero!($name, $( $arg ),+)))
+		(SubstrateWeight::$name($( $arg ),+).saturating_sub(call_zero!($name, $( $arg ),+)))
 	}
 }
 
@@ -414,7 +399,7 @@ macro_rules! cost_byte_batched {
     };
 }
 
-impl<T: Config> Default for Schedule<T> {
+impl Default for Schedule {
     fn default() -> Self {
         Self {
             version: 0,
@@ -444,7 +429,7 @@ impl Default for Limits {
     }
 }
 
-impl<T: Config> Default for InstructionWeights<T> {
+impl Default for InstructionWeights {
     fn default() -> Self {
         let max_pages = Limits::default().memory_pages;
         Self {
@@ -499,12 +484,11 @@ impl<T: Config> Default for InstructionWeights<T> {
             i64shru: cost_instr!(instr_i64shru, 3),
             i64rotl: cost_instr!(instr_i64rotl, 3),
             i64rotr: cost_instr!(instr_i64rotr, 3),
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<T: Config> Default for HostFnWeights<T> {
+impl Default for HostFnWeights {
     fn default() -> Self {
         Self {
             caller: cost_batched!(seal_caller),
@@ -587,17 +571,16 @@ impl<T: Config> Default for HostFnWeights<T> {
             hash_blake2_256_per_byte: cost_byte_batched!(seal_hash_blake2_256_per_kb),
             hash_blake2_128: cost_batched!(seal_hash_blake2_128),
             hash_blake2_128_per_byte: cost_byte_batched!(seal_hash_blake2_128_per_kb),
-            _phantom: PhantomData,
         }
     }
 }
 
-struct ScheduleRules<'a, T: Config> {
-    schedule: &'a Schedule<T>,
+struct ScheduleRules<'a> {
+    schedule: &'a Schedule,
     params: Vec<u32>,
 }
 
-impl<T: Config> Schedule<T> {
+impl Schedule {
     pub fn rules(&self, module: &elements::Module) -> impl rules::Rules + '_ {
         ScheduleRules {
             schedule: &self,
@@ -614,7 +597,7 @@ impl<T: Config> Schedule<T> {
     }
 }
 
-impl<'a, T: Config> rules::Rules for ScheduleRules<'a, T> {
+impl<'a> rules::Rules for ScheduleRules<'a> {
     fn instruction_cost(&self, instruction: &elements::Instruction) -> Option<u32> {
         use parity_wasm::elements::Instruction::*;
         let w = &self.schedule.instruction_weights;
@@ -708,11 +691,10 @@ impl<'a, T: Config> rules::Rules for ScheduleRules<'a, T> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::tests::Test;
 
     #[test]
     fn print_test_schedule() {
-        let schedule = Schedule::<Test>::default();
+        let schedule = Schedule::default();
         println!("{:#?}", schedule);
     }
 }
