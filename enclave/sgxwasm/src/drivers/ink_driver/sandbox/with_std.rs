@@ -179,6 +179,8 @@ impl<T> ImportResolver for EnvironmentDefinitionBuilder<T> {
         field_name: &str,
         signature: &Signature,
     ) -> Result<FuncRef, wasmi::Error> {
+        println!("ImportResolver resolve_func: {} {}", module_name, field_name);
+
         let key = (
             module_name.as_bytes().to_owned(),
             field_name.as_bytes().to_owned(),

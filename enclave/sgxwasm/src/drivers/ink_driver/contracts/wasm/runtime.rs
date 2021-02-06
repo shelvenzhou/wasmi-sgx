@@ -636,6 +636,7 @@ define_env!(Env, <E: Ext>,
     // - If value length exceeds the configured maximum value length of a storage entry.
     // - Upon trying to set an empty storage entry (value length is 0).
     seal_set_storage(ctx, key_ptr: u32, value_ptr: u32, value_len: u32) => {
+        println!("seal_set_storage() called");
         // ctx.charge_gas(RuntimeToken::SetStorage(value_len))?;
         if value_len > ctx.ext.max_value_size() {
             Err(ctx.store_err(Error::ValueTooLarge))?;
@@ -673,6 +674,7 @@ define_env!(Env, <E: Ext>,
     //
     // `ReturnCode::KeyNotFound`
     seal_get_storage(ctx, key_ptr: u32, out_ptr: u32, out_len_ptr: u32) -> ReturnCode => {
+        println!("seal_get_storage() called");
         // ctx.charge_gas(RuntimeToken::GetStorageBase)?;
         let mut key: StorageKey = [0; 32];
         ctx.read_sandbox_memory_into_buf(key_ptr, &mut key)?;
@@ -938,6 +940,7 @@ define_env!(Env, <E: Ext>,
     },
 
     seal_input(ctx, buf_ptr: u32, buf_len_ptr: u32) => {
+        println!("seal_input() called");
         // ctx.charge_gas(RuntimeToken::InputBase)?;
         if let Some(input) = ctx.input_data.take() {
             ctx.write_sandbox_output(buf_ptr, buf_len_ptr, &input, false)
@@ -964,6 +967,7 @@ define_env!(Env, <E: Ext>,
     //
     // Using a reserved bit triggers a trap.
     seal_return(ctx, flags: u32, data_ptr: u32, data_len: u32) => {
+        println!("seal_return() called");
         // ctx.charge_gas(RuntimeToken::Return(data_len))?;
         ctx.trap_reason = Some(TrapReason::Return(ReturnData {
             flags,
@@ -1075,6 +1079,7 @@ define_env!(Env, <E: Ext>,
     //
     // The data is encoded as T::Balance.
     seal_value_transferred(ctx, out_ptr: u32, out_len_ptr: u32) => {
+        println!("seal_value_transferred() called");
         // ctx.charge_gas(RuntimeToken::ValueTransferred)?;
         ctx.write_sandbox_output(
             out_ptr, out_len_ptr, &1_000_000_000.encode(), false)

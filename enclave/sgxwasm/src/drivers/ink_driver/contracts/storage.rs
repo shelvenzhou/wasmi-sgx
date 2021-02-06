@@ -52,7 +52,7 @@ impl Storage {
     pub fn read(contract_key: ContractKey, key: &StorageKey) -> Option<Vec<u8>> {
         // child::get_raw(&crate::child_trie_info(&trie_id), &blake2_256(key))
 
-        let storage = STORAGE.lock().unwrap();
+        let ref storage = STORAGE.lock().unwrap();
         match storage.map.get(&(contract_key, *key)) {
             Some(val) => val.clone(),
             None => None,
@@ -140,7 +140,7 @@ impl Storage {
         //     None => child::kill(&child_trie_info, &hashed_key),
         // }
 
-        let mut storage = STORAGE.lock().unwrap();
+        let ref mut storage = STORAGE.lock().unwrap();
         match opt_new_value {
             Some(new_value) => storage
                 .map

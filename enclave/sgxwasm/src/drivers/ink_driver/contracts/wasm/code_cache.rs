@@ -42,7 +42,7 @@ lazy_static! {
 ///
 /// This function instruments the given code and caches it in the storage.
 pub fn save(original_code: Vec<u8>, schedule: &Schedule) -> Result<ContractKey, &'static str> {
-    let mut code_cache = CODE_STORAGE.lock().unwrap();
+    let ref mut code_cache = CODE_STORAGE.lock().unwrap();
     code_cache.save(original_code, schedule)
 }
 
@@ -55,7 +55,7 @@ pub fn load(
     contract_key: ContractKey,
     schedule: &Schedule,
 ) -> Result<PrefabWasmModule, &'static str> {
-    let mut code_cache = CODE_STORAGE.lock().unwrap();
+    let ref mut code_cache = CODE_STORAGE.lock().unwrap();
     code_cache.load(contract_key, schedule)
 }
 

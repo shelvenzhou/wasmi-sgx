@@ -36,7 +36,7 @@ use std::ptr;
 extern crate wasmi;
 extern crate sgxwasm;
 
-use sgxwasm::{drivers::SpecDriver, boundary_value_to_runtime_value, result_covert};
+use sgxwasm::{drivers::{SpecDriver, InkModule}, boundary_value_to_runtime_value, result_covert};
 
 use sgx_types::*;
 use std::slice;
@@ -47,91 +47,91 @@ extern crate serde;
 extern crate serde_json;
 
 lazy_static!{
-    static ref DRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
-    // static ref DRIVER: SgxMutex<InkDriver> = SgxMutex::new(InkDriver::new());
+    // static ref DRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
+    static ref DRIVER: SgxMutex<InkModule> = SgxMutex::new(InkModule::new());
 }
 
 #[no_mangle]
 pub extern "C"
 fn sgxwasm_init() -> sgx_status_t {
     let mut sd = DRIVER.lock().unwrap();
-    *sd = SpecDriver::new();
+    *sd = InkModule::new();
     sgx_status_t::SGX_SUCCESS
 }
 
-fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>)
-              -> Result<Option<RuntimeValue>, InterpreterError> {
-    let mut program = DRIVER.lock().unwrap();
-    let module = program.module_or_last(module.as_ref().map(|x| x.as_ref()))
-                        .expect(&format!("Expected program to have loaded module {:?}", module));
-    module.invoke_export(&field, &args, program.externals())
-}
+// fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>)
+//               -> Result<Option<RuntimeValue>, InterpreterError> {
+//     let mut program = DRIVER.lock().unwrap();
+//     let module = program.module_or_last(module.as_ref().map(|x| x.as_ref()))
+//                         .expect(&format!("Expected program to have loaded module {:?}", module));
+//     module.invoke_export(&field, &args, program.externals())
+// }
 
-fn wasm_get(module : Option<String>, field : String)
-            -> Result<Option<RuntimeValue>, InterpreterError> {
-    let program = DRIVER.lock().unwrap();
-    let module = match module {
-        None => {
-                 program
-                 .module_or_last(None)
-                 .expect(&format!("Expected program to have loaded module {:?}",
-                        "None"
-                 ))
-        },
-        Some(str) => {
-                 program
-                 .module_or_last(Some(&str))
-                 .expect(&format!("Expected program to have loaded module {:?}",
-                         str
-                 ))
-        }
-    };
+// fn wasm_get(module : Option<String>, field : String)
+//             -> Result<Option<RuntimeValue>, InterpreterError> {
+//     let program = DRIVER.lock().unwrap();
+//     let module = match module {
+//         None => {
+//                  program
+//                  .module_or_last(None)
+//                  .expect(&format!("Expected program to have loaded module {:?}",
+//                         "None"
+//                  ))
+//         },
+//         Some(str) => {
+//                  program
+//                  .module_or_last(Some(&str))
+//                  .expect(&format!("Expected program to have loaded module {:?}",
+//                          str
+//                  ))
+//         }
+//     };
 
-    let global = module.export_by_name(&field)
-                       .ok_or_else(|| {
-                           InterpreterError::Global(format!("Expected to have export with name {}", field))
-                       })?
-                       .as_global()
-                       .cloned()
-                       .ok_or_else(|| {
-                           InterpreterError::Global(format!("Expected export {} to be a global", field))
-                       })?;
-     Ok(Some(global.get()))
-}
+//     let global = module.export_by_name(&field)
+//                        .ok_or_else(|| {
+//                            InterpreterError::Global(format!("Expected to have export with name {}", field))
+//                        })?
+//                        .as_global()
+//                        .cloned()
+//                        .ok_or_else(|| {
+//                            InterpreterError::Global(format!("Expected export {} to be a global", field))
+//                        })?;
+//      Ok(Some(global.get()))
+// }
 
-fn try_load_module(wasm: &[u8]) -> Result<Module, InterpreterError> {
-    wasmi::Module::from_buffer(wasm).map_err(|e| InterpreterError::Instantiation(format!("Module::from_buffer error {:?}", e)))
-}
+// fn try_load_module(wasm: &[u8]) -> Result<Module, InterpreterError> {
+//     wasmi::Module::from_buffer(wasm).map_err(|e| InterpreterError::Instantiation(format!("Module::from_buffer error {:?}", e)))
+// }
 
-fn wasm_try_load(wasm: Vec<u8>) -> Result<(), InterpreterError> {
-    let ref mut driver = DRIVER.lock().unwrap();
-    let module = try_load_module(&wasm[..])?;
-    let instance = ModuleInstance::new(&module, &ImportsBuilder::default())?;
-    instance
-        .run_start(driver.externals())
-        .map_err(|trap| InterpreterError::Instantiation(format!("ModuleInstance::run_start error on {:?}", trap)))?;
+// fn wasm_try_load(wasm: Vec<u8>) -> Result<(), InterpreterError> {
+//     let ref mut driver = DRIVER.lock().unwrap();
+//     let module = try_load_module(&wasm[..])?;
+//     let instance = ModuleInstance::new(&module, &ImportsBuilder::default())?;
+//     instance
+//         .run_start(driver.externals())
+//         .map_err(|trap| InterpreterError::Instantiation(format!("ModuleInstance::run_start error on {:?}", trap)))?;
+//     Ok(())
+// }
+
+fn wasm_load_module()
+                    -> Result<(), InterpreterError> {
+    // let ref mut driver = DRIVER.lock().unwrap();
+    // let module = try_load_module(&module[..])?;
+    // let instance = ModuleInstance::new(&module, &**driver)
+    //     .map_err(|e| InterpreterError::Instantiation(format!("ModuleInstance::new error on {:?}", e)))?
+    //     .run_start(driver.externals())
+    //     .map_err(|trap| InterpreterError::Instantiation(format!("ModuleInstance::run_start error on {:?}", trap)))?;
+
+    // driver.add_module(name, instance.clone());
+
     Ok(())
 }
 
-fn wasm_load_module(name: Option<String>, module: Vec<u8>)
-                    -> Result<(), InterpreterError> {
-    let ref mut driver = DRIVER.lock().unwrap();
-    let module = try_load_module(&module[..])?;
-    let instance = ModuleInstance::new(&module, &**driver)
-        .map_err(|e| InterpreterError::Instantiation(format!("ModuleInstance::new error on {:?}", e)))?
-        .run_start(driver.externals())
-        .map_err(|trap| InterpreterError::Instantiation(format!("ModuleInstance::run_start error on {:?}", trap)))?;
-
-    driver.add_module(name, instance.clone());
-
-    Ok(())
-}
-
-fn wasm_register(name: &Option<String>, as_name: String)
-                    -> Result<(), InterpreterError> {
-    let ref mut driver = DRIVER.lock().unwrap();
-    driver.register(name, as_name)
-}
+// fn wasm_register(name: &Option<String>, as_name: String)
+//                     -> Result<(), InterpreterError> {
+//     let ref mut driver = DRIVER.lock().unwrap();
+//     driver.register(name, as_name)
+// }
 
 #[no_mangle]
 pub extern "C"
@@ -141,74 +141,100 @@ fn sgxwasm_run_action(req_bin : *const u8, req_length: usize,
     let req_slice = unsafe { slice::from_raw_parts(req_bin, req_length) };
     let action_req: sgxwasm::SgxWasmAction = serde_json::from_slice(req_slice).unwrap();
 
-    let response;
+    let response = serde_json::to_string(&wasm_load_module()).unwrap();
     let return_status;
 
     match action_req {
-        sgxwasm::SgxWasmAction::Invoke{module,field,args}=> {
-            let args = args.into_iter()
-                           .map(|x| boundary_value_to_runtime_value(x))
-                           .collect::<Vec<RuntimeValue>>();
-            let r = wasm_invoke(module, field, args);
-            let r = result_covert(r);
-            response = serde_json::to_string(&r).unwrap();
-            match r {
-                Ok(_) => {
-                    return_status = sgx_status_t::SGX_SUCCESS;
-                },
-                Err(_) => {
-                    return_status = sgx_status_t::SGX_ERROR_WASM_INTERPRETER_ERROR;
-               }
-            }
+        sgxwasm::SgxWasmAction::Invoke{module,field, args}=> {
+            // let args = args.into_iter()
+            //                .map(|x| boundary_value_to_runtime_value(x))
+            //                .collect::<Vec<RuntimeValue>>();
+            // let r = wasm_invoke(module, field, args);
+            // let r = result_covert(r);
+            // response = serde_json::to_string(&r).unwrap();
+            // match r {
+            //     Ok(_) => {
+            //         return_status = sgx_status_t::SGX_SUCCESS;
+            //     },
+            //     Err(_) => {
+            //         return_status = sgx_status_t::SGX_ERROR_WASM_INTERPRETER_ERROR;
+            //    }
+            // }
+
+            println!("Recv Invoke");
+            return_status = sgx_status_t::SGX_SUCCESS;
         },
         sgxwasm::SgxWasmAction::Get{module,field} => {
-            let r = wasm_get(module, field);
-            let r = result_covert(r);
-            response = serde_json::to_string(&r).unwrap();
-            match r {
-                Ok(_v) => {
-                    return_status = sgx_status_t::SGX_SUCCESS;
-                },
-                Err(_x) => {
-                    return_status = sgx_status_t::SGX_ERROR_WASM_INTERPRETER_ERROR;
-                }
-            }
+            // let r = wasm_get(module, field);
+            // let r = result_covert(r);
+            // response = serde_json::to_string(&r).unwrap();
+            // match r {
+            //     Ok(_v) => {
+            //         return_status = sgx_status_t::SGX_SUCCESS;
+            //     },
+            //     Err(_x) => {
+            //         return_status = sgx_status_t::SGX_ERROR_WASM_INTERPRETER_ERROR;
+            //     }
+            // }
+
+            println!("Recv Get");
+            return_status = sgx_status_t::SGX_SUCCESS;
         },
         sgxwasm::SgxWasmAction::LoadModule{name,module} => {
-            let r = wasm_load_module(name.clone(), module);
-            response = serde_json::to_string(&r).unwrap();
-            match r {
-                Ok(_) => {
-                    return_status = sgx_status_t::SGX_SUCCESS;
-                },
-                Err(_x) => {
-                    return_status = sgx_status_t::SGX_ERROR_WASM_LOAD_MODULE_ERROR;
-                }
-            }
+            // let r = wasm_load_module(name.clone(), module);
+            // response = serde_json::to_string(&r).unwrap();
+            // match r {
+            //     Ok(_) => {
+            //         return_status = sgx_status_t::SGX_SUCCESS;
+            //     },
+            //     Err(_x) => {
+            //         return_status = sgx_status_t::SGX_ERROR_WASM_LOAD_MODULE_ERROR;
+            //     }
+            // }
+
+            println!("Recv LoadModule");
+            let ref mut driver = DRIVER.lock().unwrap();
+            let contract_key = driver.put_code(module).unwrap();
+
+            println!("Code deplyed to {}", contract_key);
+
+            let _result = InkModule::instantiate(contract_key, Vec::new());
+            println!("Code instantiated");
+
+            let _result = InkModule::call(contract_key, Vec::new());
+            println!("Code called");
+
+            return_status = sgx_status_t::SGX_SUCCESS;
         },
         sgxwasm::SgxWasmAction::TryLoad{module} => {
-            let r = wasm_try_load(module);
-            response = serde_json::to_string(&r).unwrap();
-            match r {
-                Ok(()) => {
-                    return_status = sgx_status_t::SGX_SUCCESS;
-                },
-                Err(_x) => {
-                    return_status = sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR;
-                }
-            }
+            // let r = wasm_try_load(module);
+            // response = serde_json::to_string(&r).unwrap();
+            // match r {
+            //     Ok(()) => {
+            //         return_status = sgx_status_t::SGX_SUCCESS;
+            //     },
+            //     Err(_x) => {
+            //         return_status = sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR;
+            //     }
+            // }
+
+            println!("Recv TryLoad");
+            return_status = sgx_status_t::SGX_SUCCESS;
         },
         sgxwasm::SgxWasmAction::Register{name, as_name} => {
-            let r = wasm_register(&name, as_name.clone());
-            response = serde_json::to_string(&r).unwrap();
-            match r {
-                Ok(()) => {
-                    return_status = sgx_status_t::SGX_SUCCESS;
-                },
-                Err(_x) => {
-                    return_status = sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR;
-                }
-            }
+            // let r = wasm_register(&name, as_name.clone());
+            // response = serde_json::to_string(&r).unwrap();
+            // match r {
+            //     Ok(()) => {
+            //         return_status = sgx_status_t::SGX_SUCCESS;
+            //     },
+            //     Err(_x) => {
+            //         return_status = sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR;
+            //     }
+            // }
+
+            println!("Recv Register");
+            return_status = sgx_status_t::SGX_SUCCESS;
         }
     }
 

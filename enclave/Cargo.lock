@@ -5,7 +5,9 @@ name = "Wasmienclave"
 version = "1.0.0"
 dependencies = [
  "lazy_static",
+ "parity-scale-codec",
  "serde 1.0.118",
+ "serde_derive",
  "serde_json",
  "sgx_tstd",
  "sgx_types",

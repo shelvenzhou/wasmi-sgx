@@ -547,6 +547,7 @@ fn main() {
 
     let wasm_list = vec![
         "../test_ink_contracts/flipper.wasm",
+        "../test_ink_contracts/full_example.wasm",
         ];
 
     for wfile in wasm_list {

@@ -194,13 +194,13 @@ impl InkModule {
 
     /// Stores the given binary Wasm code into the chain's storage and returns its `codehash`.
     /// You can instantiate contracts only with stored code.
-    pub fn put_code(&mut self, code: Vec<u8>) -> DispatchResult {
+    pub fn put_code(&mut self, code: Vec<u8>) -> std::result::Result<ContractKey, DispatchError> {
         if code.len() as u32 > self.cfg.schedule.limits.code_size {
             return Err(DispatchError::Module(Error::CodeTooLarge));
         }
 
         let result = wasm::save_code(code, &self.cfg.schedule);
-        result.map(|_| ()).map_err(DispatchError::Other)
+        result.map_err(DispatchError::Other)
     }
 
     /// Makes a call to an account, optionally transferring some balance.
