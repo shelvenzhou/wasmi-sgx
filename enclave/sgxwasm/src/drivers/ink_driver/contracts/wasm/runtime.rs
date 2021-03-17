@@ -1082,7 +1082,7 @@ define_env!(Env, <E: Ext>,
         println!("seal_value_transferred() called");
         // ctx.charge_gas(RuntimeToken::ValueTransferred)?;
         ctx.write_sandbox_output(
-            out_ptr, out_len_ptr, &1_000_000_000.encode(), false)
+            out_ptr, out_len_ptr, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], false)
     },
 
     // Stores a random number for the current block and the given subject into the supplied buffer.
